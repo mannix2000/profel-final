@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport"
+            content="width=device-width, initial-scale=1.0, user-scalable=no" />
+        <title>Business Intelligence Exam </title>
+        <script
+            src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+        <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        input, select, textarea {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        :root { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; }
+        body { background: #f1f5f9; margin: 0; padding: 20px; line-height: 1.45; }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+        header { display: flex; align-items: center; gap: 16px; background: #fff; padding: 14px 20px; border-radius: 16px; flex-wrap: wrap; }
+        header h1 { font-size: 1.15rem; margin: 0; }
+        .timer { margin-left: auto; background: #fff2f0; color: #b91c1c; padding: 6px 16px; border-radius: 40px; font-weight: 700; font-family: monospace; }
+        .card { background: #fff; padding: 20px; margin-top: 20px; border-radius: 20px; box-shadow: 0 6px 14px rgba(0,0,0,0.05); }
+        label { font-weight: 600; margin-bottom: 6px; display: block; }
+        select, input, textarea { width: 100%; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 12px; }
+        button { background: #1f2937; color: white; padding: 10px 18px; border-radius: 40px; border: none; font-weight: 600; cursor: pointer; margin-right: 8px; margin-bottom: 6px; }
+        button.instructor { background: #7e22ce; }
+        .muted { color: #6c757d; font-size: 0.8rem; }
+        .question { padding: 16px; border-radius: 16px; border: 1px solid #eef2f6; margin-bottom: 16px; background: #fff; }
+        .qcase { font-weight: 700; margin-bottom: 12px; color: #075985; }
+        .badge-part { background: #e0f2fe; border-radius: 30px; padding: 2px 10px; font-size: 0.7rem; margin-left: 8px; }
+        #submitMsg { display: none; margin-top: 18px; padding: 12px; border-radius: 14px; background: #ecfdf5; color: #065f46; }
+        .deadline-badge { background: #fef9c3; border-radius: 30px; padding: 4px 12px; font-size: 0.7rem; color: #854d0e; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; max-width: 550px; width: 90%; border-radius: 28px; padding: 24px; max-height: 85vh; overflow-y: auto; }
+        .cheat-warning { background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 12px; text-align: center; display: none; margin-bottom: 12px; }
+        .import-area { border: 2px dashed #cbd5e1; padding: 16px; border-radius: 16px; margin-top: 16px; }
+    </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <header>
+                <h1>Business Intelligence Exam<br><span
+                        style="font-size:0.75rem;"></span></h1>
+                <div class="deadline-badge" id="dynamicDeadlineDisplay">📅
+                    Loading...</div>
+                <div class="timer" id="timer">--:--</div>
+            </header>
+
+            <div class="card" id="accessCodeSection">
+                <label>🔐 Exam Access Code</label>
+                <input id="examCodeInput" type="text"
+                    placeholder="Enter exam access key" />
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button id="examCodeBtn">Start Exam</button>
+                    <button type="button" id="instructorSettingsBtn"
+                        class="instructor">⚙️ Instructor Settings</button>
+                </div>
+                <p id="codeError" class="muted"
+                    style="color:#b91c1c; display:none;"></p>
+            </div>
+
+            <form id="examForm" class="card" autocomplete="off"
+                style="display:none">
+                <div class="cheat-warning" id="cheatWarning">⚠️ Violation – page
+                    will reload.</div>
+                <label>📛 Student Name (Last, First)</label>
+                <input id="studentName" type="text"
+                    placeholder="e.g., Santos, Maria" />
+                <div id="questions"></div>
+                <div
+                    style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;">
+                    <button type="submit" id="submitBtn">✅ Submit Exam</button>
+                    <button type="button" id="downloadMyResultBtn"
+                        class="secondary" disabled>📎 Download My Results (to
+                        send to instructor)</button>
+                </div>
+                <div id="submitMsg"></div>
+            </form>
+
+            <!-- Instructor Settings Modal with IMPORT feature -->
+            <div id="instructorModal" class="modal">
+                <div class="modal-content">
+                    <h3>🔧 Instructor Tools</h3>
+                    <label>Admin Password:</label>
+                    <input type="password" id="instructorAdminPass" />
+                    <button id="authInstructorBtn">Authenticate</button>
+                    <div id="instructorConfigArea"
+                        style="display:none; margin-top:15px;">
+                        <label>Student Access Code:</label>
+                        <input type="text" id="confAccessCode" />
+                        <label>Exam Start Date & Time:</label>
+                        <input type="datetime-local" id="confStartDateTime" />
+                        <label>Exam Deadline:</label>
+                        <input type="datetime-local" id="confEndDateTime" />
+                        <label>Duration (minutes):</label>
+                        <input type="number" id="confDurationMins" min="1"
+                            max="300" />
+                        <label>Excel Export Password:</label>
+                        <input type="text" id="confExportPassword" />
+                        <div style="display:flex; gap:8px;">
+                            <button id="saveInstructorSettingsBtn">💾 Save
+                                Settings</button>
+                            <button id="closeModalBtn">Cancel</button>
+                        </div>
+                        <hr />
+                        <h4>📥 Import Student Results (JSON files)</h4>
+                        <div class="import-area">
+                            <input type="file" id="importResultsInput"
+                                accept=".json" multiple />
+                            <button id="importResultsBtn"
+                                style="margin-top:8px;">Merge Selected
+                                Files</button>
+                            <p class="muted">Students can download their JSON
+                                result after submission. Upload them here to
+                                aggregate.</p>
+                        </div>
+                        <hr />
+                        <h4>📊 Export All Aggregated Records</h4>
+                        <button id="masterExportInsideBtn" class="instructor">📥
+                            Export ALL Students (Alphabetical +
+                            Password)</button>
+                        <span class="muted" id="submissionsCounterModal">(0
+                            records)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+(function(){
+    // ======================== BUSINESS ANALYTICS EXAM ========================
+    const CORRECT_ANSWERS = [
+        "C","B","B","B","C","D","C","B","A","B","A","A","B","B","C",
+        "B","A","A","B","B","B","B","C","B","B","B","A","B","B","B",
+        "C","B","C","B","C","B","B","B","C","C","C","B","B","C","B",
+        "B","C","A","B","B"
+    ];
+    
+    // Question bank (same as before, shortened for brevity, but full set is built)
+    const questionBank = buildFullQuestionBank(); // function defined below
+
+    function buildFullQuestionBank() {
+        const q1_15 = [
+            { text: "What specific question does Descriptive Analytics answer?", opts: ["What will happen?", "Why did it happen?", "What happened?", "How can we make it happen?"] },
+            { text: "Which of the following is the primary foundation of business analytics?", opts: ["Raw hardware processing", "Historical data", "Theoretical assumptions", "Future predictions"] },
+            { text: "In the context of business analytics, what does historical data represent?", opts: ["Data predicted for the next quarter", "Data from the past", "Data simulated for testing", "Data that has been completely deleted"] },
+            { text: "According to the Four-Level Quality Framework, what characterizes 'Level 1 - Raw' data?", opts: ["All outliers treated", "Missing values, inconsistent formats, and duplicates", "Outlier capping and missing value imputation", "Derived features created"] },
+            { text: "What specific tasks are performed during 'Level 2 - Basic cleaning'?", opts: ["Value imputation by group", "Missing values left as 'NULL'", "Duplicate removal, type conversion, and case standardisation", "Fully analysis-ready data enrichment"] },
+            { text: "Which data readiness level is described as 'Fully analysis-ready, tidy, enriched'?", opts: ["Level 1 - Raw", "Level 2 - Basic cleaning", "Level 3 - Well-cleaned", "Level 4 - Impeccably clean"] },
+            { text: "Which of the following is a common metric used in descriptive analytics?", opts: ["Predictive algorithms", "Cloud storage size", "Total sales or revenue", "Hardware networking"] },
+            { text: "In R programming, which function is used to calculate the average of a dataset?", opts: ["sum()", "mean()", "tapply()", "aggregate()"] },
+            { text: "Which R function helps identify the highest value in a sales dataset?", opts: ["max()", "min()", "head()", "print()"] },
+            { text: "Which R function is explicitly used to generate a bar chart?", opts: ["plot(type='o')", "barplot()", "subset()", "data.frame()"] },
+            { text: "Which of the following is a common sample output of Descriptive Analytics?", opts: ["Bar charts and line graphs", "R syntax errors", "Raw text files", "Predictive machine learning models"] },
+            { text: "When creating a scatter plot or a line graph in R, which base function is primarily used?", opts: ["plot()", "mean()", "aggregate()", "c()"] },
+            { text: "According to the R vs BI tools comparison, what is a primary operational requirement for Power BI?", opts: ["It works strictly offline.", "It requires internet/cloud connectivity.", "It is limited to basic visualizations only.", "It is an open-source command line tool."] },
+            { text: "How is Tableau characterized in the tools comparison?", opts: ["As a lightweight mobile app", "As heavy software", "As an offline coding environment", "As an automated database"] },
+            { text: "Which of the following is a key advantage of Base R for schools or small businesses?", opts: ["It is expensive but powerful.", "It requires a continuous internet connection.", "It works offline, is lightweight, and runs on low-end devices.", "It requires heavy graphical processing units."] }
+        ];
+        const q16_30 = [
+            { text: "Why are analytics dashboards and reports crucial to a business manager?", opts: ["They eliminate the need for any human staff.", "They support better decision-making by summarizing past performance.", "They automatically solve all ethical issues.", "They write programming code automatically."] },
+            { text: "How does understanding past data support the broader analytics lifecycle?", opts: ["It serves as the foundation for identifying trends and informing future strategies.", "It ensures that older data is immediately archived and forgotten.", "It prevents businesses from exploring predictive models.", "It replaces the need for qualitative business judgment."] },
+            { text: "Why must ethical issues be considered throughout the analytics lifecycle?", opts: ["To ensure data privacy, avoid bias, and maintain trust.", "To make data processing faster.", "To reduce file size.", "To bypass data cleaning."] },
+            { text: "Why is the data preparation phase often considered the most critical?", opts: ["It requires expensive software.", "Unusable raw data must be transformed into a trustworthy foundation.", "It is the only phase that uses visualizations.", "It skips data quality assessment."] },
+            { text: "What does 'outlier capping' signify in data quality?", opts: ["Removing all data points above zero", "Handling extreme numbers to prevent skewing", "Deleting all incomplete records", "Changing numbers to text"] },
+            { text: "How does standardizing case and trimming whitespace improve data quality?", opts: ["Creates derived features", "Resolves structural inconsistencies for reliable sorting/aggregation", "Imputes missing values", "Converts data to Level 4"] },
+            { text: "What is the purpose of summary statistics like totals, averages, and counts?", opts: ["To predict ML outcomes", "To summarize past data and monitor performance", "To connect to cloud databases", "To remove outliers"] },
+            { text: "How does the sum() function assist a business manager?", opts: ["Filters missing values", "Identifies lowest selling product", "Computes total overall sales", "Creates dashboard layout"] },
+            { text: "What is the primary difference between tapply() and mean() in R?", opts: ["mean() creates a chart, tapply() creates a table.", "mean() calculates overall average, tapply() applies function by category.", "tapply() handles text, mean() handles dates.", "They are identical."] },
+            { text: "Why do managers prefer visualizations over raw tables?", opts: ["Visualizations need less processing.", "To quickly identify trends and patterns.", "Visualizations auto-clean data.", "Tables cannot be printed."] },
+            { text: "What makes an interactive dashboard effective?", opts: ["It only displays text.", "Drill-down reporting and mobile readiness.", "It deletes raw data.", "It hides low-selling products."] },
+            { text: "How does storytelling with data impact analytics?", opts: ["Turns raw output into a clear narrative.", "Replaces data cleaning.", "Only for predictive analytics.", "Requires complex loops."] },
+            { text: "How does R compare to Excel in visualization?", opts: ["R is basic, Excel is strong.", "R provides strong flexible viz, Excel's are basic.", "Both are identical.", "Neither can produce charts."] },
+            { text: "What is 'Drill-down reporting'?", opts: ["Drilling hardware", "Clicking metrics to see detailed underlying data", "Auto-deleting data", "Writing SQL code"] },
+            { text: "Why is R scalable to advanced analytics?", opts: ["R cannot handle large data.", "R basics grow into ML and Big Data tools like Spark.", "R is cloud-only.", "R limits automation."] }
+        ];
+        const q31_40 = [
+            { text: "If a company focuses on totals, averages, counts of past month's sales, what phase?", opts: ["Prescriptive", "Predictive", "Descriptive", "Machine Learning"] },
+            { text: "Which scenario best represents a breakdown in analytics lifecycle?", opts: ["Defining problem and collecting data", "Building dashboard with raw, uncleaned data", "Drill-down reporting", "Transforming data before mean"] },
+            { text: "Dataset has date parsing, dropped incomplete records, outlier capping, but lacks derived features. Readiness level?", opts: ["Level 1", "Level 2", "Level 3", "Level 4"] },
+            { text: "Missing data appears as NA, empty strings, 'NULL', '?'. What level & remedy?", opts: ["Level 3; outlier capping", "Level 1; coerce to true NAs", "Level 4; no remedy", "Level 2; whitespace trimming"] },
+            { text: "Retail store calculates total sales per product to identify best/low sellers. What analytics?", opts: ["Prescriptive", "Predictive", "Descriptive", "Text mining"] },
+            { text: "Why is tapply(sales, product, sum) preferred over manual Excel?", opts: ["Takes longer but visual", "Automates repetitive tasks in one line", "Builds Power BI dashboard", "Connects to Spark"] },
+            { text: "To visualize sales trend over 12 months, best chart and R function?", opts: ["Bar chart / barplot()", "Line plot / plot(type='o')", "Table / data.frame()", "Raw text / print()"] },
+            { text: "What does type='o' do in plot(sales, type='o')?", opts: ["Changes bar color", "Connects points with lines to show trend", "Removes outliers", "Calculates sum"] },
+            { text: "Remote hospital with unstable internet: why R over Power BI?", opts: ["R requires cloud", "Power BI is lightweight", "R works offline and handles data efficiently", "Power BI is for healthcare"] },
+            { text: "Why is R preferred over Excel for large repetitive datasets?", opts: ["R limits automation to 10 rows", "Excel relies on heavy programming", "R automates full analyses with single line, Excel needs manual copying", "Excel works faster on big data"] }
+        ];
+        const q41_50 = [
+            { text: "First step to review last year's performance?", opts: ["Build Tableau dashboard", "Define business problem and objective", "Write barplot() code", "Publish to cloud"] },
+            { text: "Turning raw data into useful information for board: outputs?", opts: ["Database query", "Unstructured text", "Tables, charts, reports", "Firewall logs"] },
+            { text: "To advance from Level 2 to Level 3 for extreme outliers, apply?", opts: ["Outlier capping", "Case standardisation", "Duplicate removal", "Type conversion"] },
+            { text: "To achieve Level 4, how handle missing values?", opts: ["Leave as empty strings", "Convert to whitespace", "Drop columns", "Impute using robust statistical methods"] },
+            { text: "Find lowest age in vector to check out-of-range data: R function?", opts: ["subset()", "max()", "mean()", "min()"] },
+            { text: "Quick summary showing first 6 rows of dataset: which function?", opts: ["print()", "head()", "subset()", "barplot()"] },
+            { text: "Present 'Total Sales by Product' to CEO: best visual?", opts: ["Raw numeric array", "tapply() output", "barplot(sales)", "min(sales)"] },
+            { text: "Manager wants overall summary of daily sales and peak days at a glance: design?", opts: ["Monthly/yearly dashboard", "Raw dataset export", "ML decision tree", "Data collection framework"] },
+            { text: "Interactive cloud dashboard for executives: which tool?", opts: ["Base R offline", "Power BI", "Notepad", "barplot()"] },
+            { text: "Pipeline: filter sales > 120 then visualize. Sequence in R?", opts: ["print() then mean()", "subset(data, sales > 120) then barplot()", "tapply() then min()", "head() then sum()"] }
+        ];
+        return [...q1_15, ...q16_30, ...q31_40, ...q41_50];
+    }
+
+    // Instructor settings & global storage (now aggregated via imports)
+    const DEFAULT_SETTINGS = {
+        studentAccessCode: "BORDAGOL-EXAM-2026",
+         examStart: "2026-05-20T02:30",
+        examDeadline: "2026-05-20T23:59",
+        durationMinutes: 60,
+        instructorMasterPassword: "BA_MASTER"
+    };
+    const ADMIN_MASTER_PASS = "InstAdmin2026!";
+    const SETTINGS_KEY = "BAExamInstructorSettings";
+    const SUBMISSIONS_KEY = "BAExamMasterSubmissions";  // aggregated submissions
+
+    let examStarted = false, timerInterval = null, totalSeconds = 0, currentCorrectAnswers = [], studentSubmissionRecorded = false;
+    let currentStudentResult = null; // to allow download
+
+    // DOM elements
+    const accessSection = document.getElementById('accessCodeSection');
+    const examForm = document.getElementById('examForm');
+    const examCodeInput = document.getElementById('examCodeInput');
+    const examCodeBtn = document.getElementById('examCodeBtn');
+    const codeError = document.getElementById('codeError');
+    const timerEl = document.getElementById('timer');
+    const dynamicDeadlineSpan = document.getElementById('dynamicDeadlineDisplay');
+    const instructorSettingsBtn = document.getElementById('instructorSettingsBtn');
+    const modal = document.getElementById('instructorModal');
+    const authInstructorBtn = document.getElementById('authInstructorBtn');
+    const instructorAdminPass = document.getElementById('instructorAdminPass');
+    const instructorConfigArea = document.getElementById('instructorConfigArea');
+    const confAccessCode = document.getElementById('confAccessCode');
+    const confStartDateTime = document.getElementById('confStartDateTime');
+    const confEndDateTime = document.getElementById('confEndDateTime');
+    const confDurationMins = document.getElementById('confDurationMins');
+    const confExportPassword = document.getElementById('confExportPassword');
+    const saveSettingsBtn = document.getElementById('saveInstructorSettingsBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const masterExportInsideBtn = document.getElementById('masterExportInsideBtn');
+    const submissionsCounterModal = document.getElementById('submissionsCounterModal');
+    const importResultsInput = document.getElementById('importResultsInput');
+    const importResultsBtn = document.getElementById('importResultsBtn');
+    const questionsContainer = document.getElementById('questions');
+    const downloadMyResultBtn = document.getElementById('downloadMyResultBtn');
+
+    // Helper functions
+    function loadSettings() { const s = localStorage.getItem(SETTINGS_KEY); return s ? JSON.parse(s) : { ...DEFAULT_SETTINGS }; }
+    function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+    function updateDeadlineDisplay() {
+        const s = loadSettings();
+        dynamicDeadlineSpan.innerHTML = `📅 Start: ${new Date(s.examStart).toLocaleString()} | Deadline: ${new Date(s.examDeadline).toLocaleString()}`;
+    }
+    function isExamWindowOpen() {
+        const s = loadSettings();
+        const now = new Date();
+        return now >= new Date(s.examStart) && now <= new Date(s.examDeadline);
+    }
+    function computeInitialSeconds() {
+        const s = loadSettings();
+        const deadline = new Date(s.examDeadline);
+        const durationSec = s.durationMinutes * 60;
+        const secUntilDeadline = Math.max(0, Math.floor((deadline - new Date()) / 1000));
+        return Math.min(durationSec, secUntilDeadline);
+    }
+    function loadSubmissions() { const s = localStorage.getItem(SUBMISSIONS_KEY); return s ? JSON.parse(s) : []; }
+    function saveSubmissions(subs) { localStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(subs)); updateSubmissionCounter(); }
+    function updateSubmissionCounter() { const cnt = loadSubmissions().length; if (submissionsCounterModal) submissionsCounterModal.textContent = `📋 ${cnt} student record(s) stored`; }
+    function addSubmissionRecord(record) {
+        let subs = loadSubmissions();
+        // avoid duplicate by name+timestamp? simple push
+        subs.push(record);
+        saveSubmissions(subs);
+    }
+
+    // Build questions UI
+    function buildQuestionsHTML() {
+        let html = '';
+        questionBank.forEach((q, idx) => {
+            const part = idx < 15 ? 'REMEMBERING' : (idx < 30 ? 'UNDERSTANDING' : (idx < 40 ? 'ANALYZING' : 'APPLYING'));
+            html += `<div class="question" data-qid="${idx+1}">
+                        <div class="qcase">📌 Question ${idx+1} <span class="badge-part">${part}</span></div>
+                        <label>${q.text}</label>
+                        <select name="temp">
+                            <option value="">-- Select Answer --</option>
+                            <option value="A">A. ${q.opts[0]}</option>
+                            <option value="B">B. ${q.opts[1]}</option>
+                            <option value="C">C. ${q.opts[2]}</option>
+                            <option value="D">D. ${q.opts[3]}</option>
+                        </select>
+                    </div>`;
+        });
+        return html;
+    }
+    function shuffleArray(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+    function randomizeQuestionsAndOptions() {
+        const blocks = Array.from(questionsContainer.querySelectorAll('.question'));
+        const shuffled = shuffleArray(blocks);
+        const newCorrect = [];
+        questionsContainer.innerHTML = '';
+        shuffled.forEach((block, idx) => {
+            const qid = parseInt(block.getAttribute('data-qid'), 10);
+            newCorrect[idx] = CORRECT_ANSWERS[qid-1];
+            const select = block.querySelector('select');
+            if (select) {
+                const placeholder = Array.from(select.options).find(o => o.value === "");
+                const opts = Array.from(select.options).filter(o => o.value !== "");
+                shuffleArray(opts);
+                select.innerHTML = "";
+                if (placeholder) select.appendChild(placeholder);
+                opts.forEach(opt => select.appendChild(opt));
+                select.name = `q${idx+1}`;
+            }
+            questionsContainer.appendChild(block);
+        });
+        currentCorrectAnswers = newCorrect;
+    }
+
+    // Timer & submit
+    function startTimer(sec) {
+        if (timerInterval) clearInterval(timerInterval);
+        totalSeconds = sec;
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+            if (!examStarted) return;
+            if (totalSeconds <= 0) { clearInterval(timerInterval); lockAndSubmit(); }
+            else { totalSeconds--; updateTimerDisplay(); }
+        }, 1000);
+    }
+    function updateTimerDisplay() { let m = Math.floor(totalSeconds/60), s = totalSeconds%60; timerEl.textContent = `${m<10?'0'+m:m}:${s<10?'0'+s:s}`; }
+    function lockAndSubmit() { if (examStarted && !studentSubmissionRecorded) submitAnswers(true); }
+    function submitAnswers() {
+        if (studentSubmissionRecorded) return;
+        clearInterval(timerInterval);
+        examStarted = false;
+        const name = document.getElementById('studentName').value.trim();
+        if (!name) { alert("Please enter your name."); return; }
+        let correct = 0;
+        for (let i=1; i<=currentCorrectAnswers.length; i++) {
+            const sel = examForm.querySelector(`select[name="q${i}"]`);
+            if (sel && sel.value === currentCorrectAnswers[i-1]) correct++;
+        }
+        const percent = Math.round((correct/50)*100);
+        const passed = percent >= 60;
+        const resultRecord = { studentName: name, rawScore: correct, totalQuestions: 50, percent, passed, timestamp: new Date().toLocaleString() };
+        currentStudentResult = resultRecord;
+        addSubmissionRecord(resultRecord);
+        studentSubmissionRecorded = true;
+        document.getElementById('submitMsg').style.display = 'block';
+        document.getElementById('submitMsg').innerHTML = `✅ Submitted. Score: ${correct}/50 (${percent}%) — ${passed ? 'PASS' : 'FAIL'}. You can now download your results to send to instructor.`;
+        downloadMyResultBtn.disabled = false;
+        examForm.querySelectorAll('select, input, button[type="submit"]').forEach(el => el.disabled = true);
+    }
+    // Student download their result JSON
+    downloadMyResultBtn.onclick = () => {
+        if (!currentStudentResult) return;
+        const dataStr = JSON.stringify(currentStudentResult, null, 2);
+        const blob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentStudentResult.studentName.replace(/\s/g,'_')}_exam_result.json`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    };
+
+    // Anti-cheat (same as before)
+    function resetExamDueToCheat(reason) {
+        if (!examStarted || studentSubmissionRecorded) return;
+        const warn = document.getElementById('cheatWarning');
+        if (warn) { warn.style.display = 'block'; warn.innerText = `⚠️ ${reason}. Reloading...`; }
+        if (timerInterval) clearInterval(timerInterval);
+        examStarted = false;
+        setTimeout(() => location.reload(), 1500);
+    }
+    function activateLockdown() {
+        document.addEventListener('copy', e => { if (examStarted) { e.preventDefault(); resetExamDueToCheat('Copy attempt'); } });
+        document.addEventListener('cut', e => { if (examStarted) { e.preventDefault(); resetExamDueToCheat('Cut attempt'); } });
+        document.addEventListener('paste', e => { if (examStarted) { e.preventDefault(); resetExamDueToCheat('Paste attempt'); } });
+        document.addEventListener('contextmenu', e => { if (examStarted) { e.preventDefault(); resetExamDueToCheat('Right-click'); } });
+        document.addEventListener('selectstart', e => { if (examStarted) { e.preventDefault(); resetExamDueToCheat('Selection'); } });
+        window.addEventListener('keydown', e => {
+            if (!examStarted) return;
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key)) || (e.ctrlKey && ['u','s','p','a','c','x'].includes(e.key)) || (e.metaKey && ['c','x','v'].includes(e.key))) {
+                e.preventDefault(); resetExamDueToCheat('Shortcut');
+            }
+        });
+        window.addEventListener('blur', () => { if (examStarted && !studentSubmissionRecorded) resetExamDueToCheat('Window blur'); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden && examStarted && !studentSubmissionRecorded) resetExamDueToCheat('Tab switch'); });
+    }
+
+    // Start exam
+    examCodeBtn.onclick = () => {
+        const settings = loadSettings();
+        if (examCodeInput.value.trim() !== settings.studentAccessCode) {
+            codeError.style.display = 'block'; codeError.innerText = '❌ Invalid code.'; return;
+        }
+        if (!isExamWindowOpen()) {
+            codeError.style.display = 'block'; codeError.innerText = '⛔ Exam window closed.'; return;
+        }
+        codeError.style.display = 'none';
+        accessSection.style.display = 'none';
+        examForm.style.display = 'block';
+        examStarted = true;
+        studentSubmissionRecorded = false;
+        randomizeQuestionsAndOptions();
+        const secs = computeInitialSeconds();
+        if (secs <= 0) { alert("Deadline passed."); location.reload(); return; }
+        startTimer(secs);
+        activateLockdown();
+    };
+
+    // Instructor modal & import
+    instructorSettingsBtn.onclick = () => { modal.style.display = 'flex'; instructorConfigArea.style.display = 'none'; instructorAdminPass.value = ''; updateSubmissionCounter(); };
+    closeModalBtn.onclick = () => { modal.style.display = 'none'; };
+    authInstructorBtn.onclick = () => {
+        if (instructorAdminPass.value === ADMIN_MASTER_PASS) {
+            const s = loadSettings();
+            confAccessCode.value = s.studentAccessCode;
+            confStartDateTime.value = s.examStart;
+            confEndDateTime.value = s.examDeadline;
+            confDurationMins.value = s.durationMinutes;
+            confExportPassword.value = s.instructorMasterPassword;
+            instructorConfigArea.style.display = 'block';
+        } else alert('Invalid admin password.');
+    };
+    saveSettingsBtn.onclick = () => {
+        const newSet = {
+            studentAccessCode: confAccessCode.value.trim(),
+            examStart: confStartDateTime.value,
+            examDeadline: confEndDateTime.value,
+            durationMinutes: parseInt(confDurationMins.value,10),
+            instructorMasterPassword: confExportPassword.value.trim()
+        };
+        saveSettings(newSet);
+        updateDeadlineDisplay();
+        modal.style.display = 'none';
+        alert("Settings saved.");
+    };
+    // Import JSON files (student results)
+    importResultsBtn.onclick = () => {
+        const files = importResultsInput.files;
+        if (!files.length) { alert("Select one or more JSON files."); return; }
+        let importedCount = 0;
+        for (let file of files) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const record = JSON.parse(e.target.result);
+                    if (record.studentName && typeof record.rawScore === 'number') {
+                        addSubmissionRecord(record);
+                        importedCount++;
+                    } else { alert(`Invalid format in ${file.name}`); }
+                } catch (err) { alert(`Error parsing ${file.name}`); }
+                if (importedCount === files.length) alert(`Imported ${importedCount} records successfully.`);
+            };
+            reader.readAsText(file);
+        }
+        setTimeout(() => updateSubmissionCounter(), 500);
+    };
+    masterExportInsideBtn.onclick = () => {
+        const settings = loadSettings();
+        const pwd = prompt("🔐 Instructor Master Password for export:");
+        if (pwd !== settings.instructorMasterPassword) { alert("Wrong password."); return; }
+        let subs = loadSubmissions();
+        if (!subs.length) { alert("No submissions yet (import or local)."); return; }
+        const sorted = [...subs].sort((a,b) => a.studentName.localeCompare(b.studentName));
+        const rows = [["MASTER REPORT - BUSINESS ANALYTICS EXAM"], [], ["Student", "Score", "Total", "Percent", "Result", "Timestamp"]];
+        sorted.forEach(s => rows.push([s.studentName, s.rawScore, s.totalQuestions, `${s.percent}%`, s.passed ? "PASS" : "FAIL", s.timestamp]));
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{wch:28},{wch:10},{wch:8},{wch:12},{wch:10},{wch:22}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "All_Students");
+        XLSX.writeFile(wb, `BA_Exam_All_${new Date().toISOString().slice(0,19)}.xlsx`);
+    };
+
+    examForm.addEventListener('submit', (e) => { e.preventDefault(); if (!studentSubmissionRecorded) submitAnswers(); });
+    questionsContainer.innerHTML = buildQuestionsHTML();
+    updateDeadlineDisplay();
+    updateSubmissionCounter();
+})();
+</script>
+    </body>
+</html>
